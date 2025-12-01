@@ -379,23 +379,38 @@ async function exportSlides(page, plugin, pdf, options) {
   // for special use cases like GIF animations
   // TODO: support plugin optional promise to wait until a particular mutation
   // instead of a pause
-  if (options.slides && !options.slides[context.currentSlide]) {
-    process.stdout.write('\r' + await progressBar(plugin, context, { skip: true }));
+
+  const canDirectNavigate = typeof plugin.goToSlide === 'function';
+
+  if (options.slides && canDirectNavigate) {
+    // Direct navigation path - only visit specified slides
+    const slideNumbers = Object.keys(options.slides).map(Number).sort((a, b) => a - b);
+    for (const slideNumber of slideNumbers) {
+      context.currentSlide = slideNumber;
+      await plugin.goToSlide(slideNumber);
+      await pause(options.pause);
+      await exportSlide(page, plugin, pdf, context, options);
+    }
   } else {
-    await pause(options.pause);
-    await exportSlide(page, plugin, pdf, context, options);
-  }
-  const maxSlide = options.slides ? Math.max(...Object.keys(options.slides)) : Infinity;
-  let hasNext = await hasNextSlide(plugin, context);
-  while (hasNext && context.currentSlide < maxSlide) {
-    await nextSlide(plugin, context);
-    await pause(options.pause);
+    // Sequential navigation path (original behavior)
     if (options.slides && !options.slides[context.currentSlide]) {
       process.stdout.write('\r' + await progressBar(plugin, context, { skip: true }));
     } else {
+      await pause(options.pause);
       await exportSlide(page, plugin, pdf, context, options);
     }
-    hasNext = await hasNextSlide(plugin, context);
+    const maxSlide = options.slides ? Math.max(...Object.keys(options.slides)) : Infinity;
+    let hasNext = await hasNextSlide(plugin, context);
+    while (hasNext && context.currentSlide < maxSlide) {
+      await nextSlide(plugin, context);
+      await pause(options.pause);
+      if (options.slides && !options.slides[context.currentSlide]) {
+        process.stdout.write('\r' + await progressBar(plugin, context, { skip: true }));
+      } else {
+        await exportSlide(page, plugin, pdf, context, options);
+      }
+      hasNext = await hasNextSlide(plugin, context);
+    }
   }
   // Flush consolidated fonts
   Object.values(context.pdfFonts).forEach(({ ref, font }) => {

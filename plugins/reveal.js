@@ -94,4 +94,15 @@ class Reveal {
         : '/' + indices.h + (indices.v > 0 ? '/' + indices.v : '');
     });
   }
+
+  goToSlide(slideNumber) {
+    return this.page.evaluate(n => {
+      const slides = Reveal.getSlides();
+      if (n > 0 && n <= slides.length) {
+        const slide = slides[n - 1];
+        const indices = Reveal.getIndices(slide);
+        Reveal.slide(indices.h, indices.v, 0);
+      }
+    }, slideNumber);
+  }
 }
