@@ -434,14 +434,18 @@ async function exportSlide(page, plugin, pdf, context, options) {
   context.exportedSlides++;
 
   if (options.screenshots) {
+    fs.mkdirSync(options.screenshotDirectory, { recursive: true });
+    // Use slide ID if available (e.g., "intro"), otherwise fall back to slide number
+    const slideIndex = await plugin.currentSlideIndex();
+    const slideId = slideIndex.replace(/^\//, '').replace(/\//g, '-') || context.currentSlide;
     for (let resolution of options.screenshotSizes || [options.size]) {
       await page.setViewport(resolution);
       // Delay page rendering to wait for the resize event to complete,
       // e.g. for impress.js (may be needed to be configurable)
       await pause(1000);
       await page.screenshot({
-        path: path.join(options.screenshotDirectory, options.filename
-          .replace('.pdf', `_${context.currentSlide}_${resolution.width}x${resolution.height}.${options.screenshotFormat}`)),
+        path: path.join(options.screenshotDirectory, path.basename(options.filename)
+          .replace('.pdf', `_${slideId}_${resolution.width}x${resolution.height}.${options.screenshotFormat}`)),
         fullPage: false,
         omitBackground: true,
       });
